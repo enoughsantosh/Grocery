@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enhanced Grocery List App</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+    .grocery-list-item {
+      transition: all 0.3s ease;
+    }
+    .grocery-list-item:hover {
+      transform: translateX(5px);
+    }
+    .animate-appear {
+      animation: appear 0.3s ease-in-out forwards;
+    }
+    @keyframes appear {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .shake {
+      animation: shake 0.5s ease-in-out;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+    <div class="flex items-center justify-center mb-6">
+      <i class="fas fa-shopping-basket text-purple-500 text-2xl mr-2"></i>
+      <h1 class="text-2xl font-bold text-gray-800">Grocery Buddy</h1>
+    </div>
+    
+    <div class="bg-gray-50 p-4 rounded-xl mb-6">
+      <div class="grid grid-cols-1 gap-3 mb-2">
+        <div class="flex items-center bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <i class="fas fa-carrot text-orange-400 ml-3 mr-2"></i>
+          <input id="itemInput" type="text" placeholder="What do you need to buy?" 
+                 class="flex-grow p-3 focus:outline-none text-gray-700">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex items-center bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <i class="fas fa-hashtag text-blue-400 ml-3 mr-2"></i>
+            <input id="quantityInput" type="number" min="1" placeholder="Quantity" 
+                   class="flex-grow p-3 focus:outline-none text-gray-700">
+          </div>
+          
+          <div class="flex items-center bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <i class="fas fa-weight-hanging text-green-400 ml-3 mr-2"></i>
+            <input id="unitInput" type="text" placeholder="Unit (kg, pcs, etc)" 
+                   class="flex-grow p-3 focus:outline-none text-gray-700">
+          </div>
+        </div>
+      </div>
+      
+      <button onclick="addItem()" id="addButton" 
+              class="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white py-3 rounded-xl hover:from-purple-600 hover:to-blue-600 transition duration-300 flex items-center justify-center font-medium">
+        <i class="fas fa-plus mr-2"></i> Add to List
+      </button>
+    </div>
+
+    <div class="mb-4 flex justify-between items-center">
+      <div class="font-medium text-gray-700">
+        <span id="itemCount">0</span> items
+      </div>
+      <div>
+        <select id="filterOptions" onchange="filterItems()" class="bg-white border border-gray-200 rounded-lg p-2 text-sm">
+          <option value="all">All Items</option>
+          <option value="active">Still Need</option>
+          <option value="completed">Purchased</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="bg-gray-50 rounded-xl p-2 min-h-[200px]">
+      <ul id="groceryList" class="space-y-2"></ul>
+      <div id="emptyMessage" class="text-center py-8 text-gray-400">
+        <i class="fas fa-shopping-cart text-3xl mb-2"></i>
+        <p>Your list is empty. Add some items!</p>
+      </div>
+    </div>
+    
+    <div class="flex justify-between items-center mt-6">
+      <button onclick="clearList()" class="text-red-500 flex items-center hover:text-red-600 transition">
+        <i class="fas fa-trash-alt mr-1"></i> Clear All
+      </button>
+      
+      <div class="flex gap-2">
+        <button onclick="saveList()" class="bg-blue-500 text-white px-3 py-2 rounded-xl hover:bg-blue-600 transition flex items-center">
+          <i class="fas fa-save mr-1"></i> Save
+        </button>
+        <button onclick="shareListLink()" class="bg-purple-500 text-white px-3 py-2 rounded-xl hover:bg-purple-600 transition flex items-center">
+          <i class="fas fa-share-alt mr-1"></i> Share
+        </button>
+      </div>
+    </div>
+
+    <!-- Notification toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden animate-appear">
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <script>
+    let list = [];
+    let filter = "all";
+
+    function renderList() {
+      const listContainer = document.getElementById("groceryList");
+      const emptyMessage = document.getElementById("emptyMessage");
+      const itemCount = document.getElementById("itemCount");
+      
+      listContainer.innerHTML = "";
+      
+      // Update item count
+      itemCount.textContent = list.length;
+      
+      // Show/hide empty message
+      if (list.length === 0) {
+        emptyMessage.classList.remove("hidden");
+      } else {
+        emptyMessage.classList.add("hidden");
+      }
+      
+      // Filter items based on selected filter
+      let filteredList = list;
+      if (filter === "active") {
+        filteredList = list.filter(item => !item.bought);
+      } else if (filter === "completed") {
+        filteredList = list.filter(item => item.bought);
+      }
+      
+      // Render items
+      filteredList.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.className = "grocery-list-item flex items-center justify-between bg-white px-4 py-3 rounded-xl shadow-sm animate-appear";
+        
+        li.innerHTML = `
+          <div class="flex items-center gap-3">
+            <input type="checkbox" class="w-5 h-5 accent-purple-500" onchange="toggleBought(${index})" ${item.bought ? 'checked' : ''}>
+            <span class="${item.bought ? 'line-through text-gray-400' : 'text-gray-700'}">
+              ${item.name} 
+              <span class="text-sm text-gray-500">(${item.quantity} ${item.unit})</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="editItem(${index})" class="text-blue-400 hover:text-blue-600 transition">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button onclick="removeItem(${index})" class="text-red-400 hover:text-red-600 transition">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        `;
+        
+        listContainer.appendChild(li);
+      });
+    }
+
+    function addItem() {
+      const nameInput = document.getElementById("itemInput");
+      const quantityInput = document.getElementById("quantityInput");
+      const unitInput = document.getElementById("unitInput");
+      
+      const name = nameInput.value.trim();
+      const quantity = quantityInput.value.trim() || 1;
+      const unit = unitInput.value.trim() || 'item';
+      
+      if (name) {
+        list.push({ name, quantity, unit, bought: false });
+        nameInput.value = "";
+        quantityInput.value = "";
+        unitInput.value = "";
+        nameInput.focus();
+        renderList();
+        updateURL();
+        showToast("Item added to list!");
+      } else {
+        nameInput.classList.add("shake");
+        setTimeout(() => nameInput.classList.remove("shake"), 500);
+      }
+    }
+
+    function removeItem(index) {
+      list.splice(index, 1);
+      renderList();
+      updateURL();
+      showToast("Item removed!");
+    }
+
+    function editItem(index) {
+      const item = list[index];
+      document.getElementById("itemInput").value = item.name;
+      document.getElementById("quantityInput").value = item.quantity;
+      document.getElementById("unitInput").value = item.unit;
+      
+      // Remove item and let user re-add with changes
+      list.splice(index, 1);
+      renderList();
+      updateURL();
+      
+      // Focus on item input
+      document.getElementById("itemInput").focus();
+    }
+
+    function toggleBought(index) {
+      list[index].bought = !list[index].bought;
+      renderList();
+      updateURL();
+      showToast(list[index].bought ? "Item marked as purchased!" : "Item marked as needed!");
+    }
+
+    function clearList() {
+      if (confirm("Are you sure you want to clear the entire list?")) {
+        list = [];
+        renderList();
+        updateURL();
+        showToast("List cleared!");
+      }
+    }
+
+    function filterItems() {
+      filter = document.getElementById("filterOptions").value;
+      renderList();
+    }
+
+    function shareListLink() {
+      const baseUrl = location.origin + location.pathname;
+      const encoded = encodeURIComponent(JSON.stringify(list));
+      const url = `${baseUrl}?data=${encoded}`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast("Link copied to clipboard!");
+      });
+    }
+
+    function saveList() {
+      localStorage.setItem('groceryList', JSON.stringify(list));
+      showToast("List saved to browser!");
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      const toastMessage = document.getElementById("toastMessage");
+      
+      toastMessage.textContent = message;
+      toast.classList.remove("hidden");
+      
+      setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 3000);
+    }
+
+    function updateURL() {
+      const encoded = encodeURIComponent(JSON.stringify(list));
+      const newUrl = `${location.pathname}?data=${encoded}`;
+      history.replaceState(null, '', newUrl);
+    }
+
+    function loadFromQuery() {
+      const params = new URLSearchParams(location.search);
+      if (params.has('data')) {
+        try {
+          list = JSON.parse(decodeURIComponent(params.get('data')));
+          renderList();
+        } catch (e) {
+          console.error("Invalid data in URL", e);
+        }
+      }
+      
+      // If no list from URL, try from localStorage
+      else if (localStorage.getItem('groceryList')) {
+        try {
+          list = JSON.parse(localStorage.getItem('groceryList'));
+          renderList();
+        } catch (e) {
+          console.error("Invalid data in localStorage", e);
+        }
+      }
+    }
+
+    // Add event listener for Enter key
+    document.getElementById("itemInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        addItem();
+      }
+    });
+
+    document.getElementById("quantityInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        document.getElementById("unitInput").focus();
+      }
+    });
+
+    document.getElementById("unitInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        addItem();
+      }
+    });
+
+    window.onload = loadFromQuery;
+  </script>
+</body>
+</html>
